@@ -1,0 +1,55 @@
+heat_template_version: 2013-05-23
+
+description: >
+  HOT template to deploy a server into an existing neutron tenant network and
+  assign floating IP addresse so it is routable from the public network.
+parameters:
+  image:
+    type: string
+    description: Name of image to use for servers
+    default: "cirros-0.3.3-x86_64"
+  flavor:
+    type: string
+    description: Flavor to use for servers
+    default: "m1.tiny"
+  vol_size:
+    type: number
+    description: Size of the volume to attach to the istance
+    default: 1
+  vol_type:
+    type: string
+    description: Select the volume type to use for this creation
+    default: solidfire
+    constraints:
+      - allowed_values: 
+           - solidfire
+           - gold 
+           - silver 
+           - bronze
+        description: Value must be one of solidfire, gold, silver or bronze
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: { get_param: "OS::stack_name" }
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+
+  storage_volume:
+    type: OS::Cinder::Volume
+    properties:
+      name: { get_param: "OS::stack_name" }
+      size: { get_param: vol_size }
+      volume_type: { get_param: vol_type }
+
+  volume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: storage_volume }
+      instance_uuid: { get_resource: server }
+
+outputs:
+  server_private_ip:
+    description: IP address of server in private network
+    value: { get_attr: [ server, first_address ] }

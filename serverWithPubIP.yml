@@ -1,0 +1,46 @@
+heat_template_version: 2013-05-23
+
+description: >
+  HOT template to deploy a server into an existing neutron tenant network and
+  assign floating IP addresse so it is routable from the public network.
+parameters:
+  key_name:
+    type: string
+    description: Name of keypair to assign to servers
+  image:
+    type: string
+    description: Name of image to use for servers
+  flavor:
+    type: string
+    description: Flavor to use for servers
+  priv_net:
+    type: string
+    description: name/ID of private network into which servers get deployed
+  pub_net:
+    type: string
+    description: ID of public network into which servers get deployed
+
+resources:
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: Server1
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      key_name: { get_param: key_name }
+      networks:
+        - network: { get_param: priv_net }
+
+  server_floating_ip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: pub_net }
+      port_id: {get_attr: [server, addresses, { get_param: priv_net }, 0, port]}
+
+outputs:
+  server1_private_ip:
+    description: IP address of server in private network
+    value: { get_attr: [ server, first_address ] }
+  server1_public_ip:
+    description: Floating IP address of server in public network
+    value: { get_attr: [ server_floating_ip, floating_ip_address ] }
