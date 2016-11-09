@@ -1,0 +1,10 @@
+parameters:
+  num_instances: 3
+  flavor: m2.small
+  image: CentOS7.2-1608-LoadGen
+  ssh_key: balduf-hlaptop
+  sec_groups: ssh-ping
+  network: admin_net
+  volume_size: 20
+  volume_type: ORAVol-Type
+  root_size: 8

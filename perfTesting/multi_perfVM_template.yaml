@@ -1,0 +1,68 @@
+heat_template_version: 2016-04-08
+
+parameters:
+  num_instances:
+    type: number
+    description: The number of instances to create. Default is 5.
+    default: 5
+  flavor:
+    type: string
+    description: The flavor to use to boot the VM
+    default: m2.small
+  image:
+    type: string
+    description: The image to use, defaults to CoreOS
+    default: CentOS7.2-1608-LoadGen
+  ssh_key:
+    type: string
+    default: balduf-hlaptop
+  sec_groups:
+    type: string
+    default: "ssh-ping"
+  network:
+    type: string
+    default: admin_net
+  volume_size:
+    type: number
+    default: 20
+  volume_type:
+    type: string
+    default: uncapped-5
+  root_size:
+    type: number
+    default: 8
+
+resources:
+  multiPerf_group:
+    type: OS::Heat::ResourceGroup
+    properties:
+      count: { get_param: num_instances }
+      resource_def:
+          type: perfVM_heat_template.yaml
+          properties:
+            flavor: { get_param: flavor }
+            image: { get_param: image }
+            ssh_key: { get_param: ssh_key }
+            sec_groups: { get_param: sec_groups }
+            network: { get_param: network }
+            volume_size: { get_param: volume_size }
+            volume_type: { get_param: volume_type }
+            root_size: { get_param: root_size }
+
+  floatingip:
+    type: OS::Nova::FloatingIP
+    properties:
+      pool: public
+
+  floatingipassoc:
+    type: OS::Nova::FloatingIPAssociation
+    properties:
+      floating_ip: { get_resource: floatingip }
+      server_id: { get_attr: [ multiPerf_group, resource.0.server ] }
+
+outputs:
+  server:
+    description: Master server IP address
+    value: { get_attr: [ floatingip, ip ] }
+  local_ips:
+    value: { get_attr: [ multiPerf_group, server_ip] }

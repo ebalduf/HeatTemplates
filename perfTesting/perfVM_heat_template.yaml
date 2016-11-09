@@ -1,0 +1,83 @@
+heat_template_version: 2016-04-08
+
+description: >
+  Heat Template to start a perf VM and put it on the external network
+
+parameters:
+  flavor:
+    type: string
+  image:
+    type: string
+  ssh_key:
+    type: string
+  sec_groups:
+    type: string
+  network:
+    type: string
+  volume_size:
+    type: number
+  volume_type:
+    type: string
+  root_type:
+    type: string
+    default: solidfire
+  root_size:
+    type: number
+
+resources:
+  root_vol:
+    type: OS::Cinder::Volume
+    properties:
+      volume_type: { get_param: root_type }
+      image: { get_param: image }
+      size: { get_param: root_size }
+
+  wait_condition:
+    type: OS::Heat::WaitCondition
+    properties:
+      handle: {get_resource: wait_handle}
+      count: 1
+      timeout: 1200
+
+  wait_handle:
+    type: OS::Heat::WaitConditionHandle
+
+  server:
+    type: OS::Nova::Server
+    properties:
+      block_device_mapping:
+        - device_name: vda
+          volume_id: { get_resource: root_vol }
+          delete_on_termination: false
+      flavor: { get_param: flavor }
+      key_name: { get_param: ssh_key }
+      security_groups: [ default, { get_param: sec_groups } ]
+      networks:
+        - network: { get_param: network }
+      user_data_format: RAW
+      user_data:
+        str_replace:
+          template: { get_file : PerfVM-config.yaml }
+          params:
+            wc_notify: { get_attr: [wait_handle, curl_cli] }
+
+  datavolume:
+    type: OS::Cinder::Volume
+    properties:
+      size: { get_param: volume_size }
+      volume_type: { get_param: volume_type }
+
+  volume_attachment:
+    type: OS::Cinder::VolumeAttachment
+    properties:
+      volume_id: { get_resource: datavolume }
+      instance_uuid: { get_resource: server }
+      mountpoint: /dev/vdb
+
+outputs:
+  server:
+    description: Server ID
+    value: { get_resource: server }
+  server_ip:
+    description: The IP address reported by the server once its ready
+    value: { get_attr: [wait_condition, data] } 

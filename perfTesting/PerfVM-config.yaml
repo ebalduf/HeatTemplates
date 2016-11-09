@@ -1,0 +1,137 @@
+#cloud-config
+
+ssh_authorized_keys:
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDkPxx58OlM866r7mZEALjpE0gq3qhmWK9LDjY5TRroVf8Einvji7io3zWCPWsX2lXDCxlBLm5CmN7pSlSL2C0VSTvFF8R2br3nb/wV2TLnU8fewTKuFE8PcjUf+p1zz0ZUGEKsBgG1pgK9hQOk5H
+zUA2N12jzR3V+QigjKibX9avUFfeutzue0DyNG7AYlTJ4OVg8zxAXjf/OAvbIStj+F4U9iqq+WYvrV/Ve4dl/Q5G+J5gLeOs2lI6kWi8Mu5MdFjVBwdivaJfzKOhiwd2BVePr7jizqnXeszD4sTMdbsIOXbTt8kgk48+CwLQhg5/qT5xwzbLcmfxZl8hGkb
++vh ebalduf-LT@ebalduf-LT.local"
+  - "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDZqnTAxq+UjYJrd9XcAbwmti7pK1yxtEvf6fSFZFmFjfvSdq47iJ17Y6H0vbjQfMJYk7B0/qoOaKl/aZ6nxgpuKRbVLFtSdu7/10jXJ6U9AIQFIvr6+OtQGvsy8o6lJcjmjePGbvXjOpF8yh/DLK
+ocAgtPpApbTgiV+kRRhvz+I/m5lRqJprZuGUz4DitknmBJfgc6XJ7z8wJb6TOXVW1tpvf5MJdr3IIR0Pip3eZZA45Al1Lc4Y8Ag6PztLh6G2q/oY2u8xTQqLNo1nEjz/ah0JSb1KiEZD91M8eBio4Osmrm7F9w3Bxyw360S5rMB6beuvk+6bMPg4wUVK6p0
+Zq/ ebalduf@Edwards-MacBook-Pro.local"
+
+write_files:
+  - path: "/home/centos/four_corners.vdb"
+    permissions: "0644"
+    owner: "centos"
+    content: |
+      * Auto-generated host and storage definitions
+      include=lgfind.hdsd
+
+      * Workload definitions
+      wd=RndRead,rdpct=100,seekpct=100,xfersize=4k
+      wd=RndWrite,rdpct=0,seekpct=100,xfersize=4k
+      wd=SeqRead,rdpct=100,seekpct=.01,xfersize=64k
+      wd=SeqWrite,rdpct=0,seekpct=.01,xfersize=64k
+
+      * Run Definitions
+      rd=default,curve=(10-120,10),iorate=curve,warmup=15,elapsed=60,interval=5
+      rd=RndRead-4k,wd=RndRead,sd=("sd*"),threads=112
+      rd=RndWrite-4k,wd=RndWrite,sd=("sd*"),threads=64
+      rd=SeqRead-64k,wd=SeqRead,sd=("sd*"),threads=48
+      rd=SeqWrite-64k,wd=SeqWrite,sd=("sd*"),threads=28
+  - path: "/home/centos/SFtest.vdb"
+    permissions: "0644"
+    owner: "centos"
+    content: |
+      * Auto-generated host and storage definitions
+      include=lgfind.hdsd
+
+      * Workload definitions
+      wd=RndRead,rdpct=100,seekpct=100,xfersize=4k
+      wd=RndWrite,rdpct=0,seekpct=100,xfersize=4k
+      wd=SeqRead,rdpct=100,seekpct=.01,xfersize=64k
+      wd=SeqWrite,rdpct=0,seekpct=.01,xfersize=64k
+
+      * Run Definitions
+      rd=default,iorate=max,warmup=15,elapsed=60,interval=5
+      rd=RndRead-4k,wd=RndRead,sd=("sd*"),threads=112
+      rd=RndWrite-4k,wd=RndWrite,sd=("sd*"),threads=64
+      rd=SeqRead-64k,wd=SeqRead,sd=("sd*"),threads=48
+      rd=SeqWrite-64k,wd=SeqWrite,sd=("sd*"),threads=28
+  - path: "/home/centos/SFtest.fio"
+    permissions: "0644"
+    owner: "centos"
+    content: |
+      [global]
+      ioengine=libaio
+      direct=1
+      time_based
+      runtime=60
+      filename=/dev/vdb
+      group_reporting
+
+      [RndRead-4k]
+      rw=randread
+      bs=4k
+      iodepth=48
+      numjobs=4
+
+      [RndWrite-4k]
+      stonewall
+      rw=randwrite
+      bs=4k
+      iodepth=16
+      numjobs=4
+
+      [SeqRead-64k]
+      stonewall
+      rw=read:4k
+      bs=64k
+      iodepth=16
+      numjobs=4
+
+      [SeqWrite-64k]
+      stonewall
+      rw=write:4k
+      bs=64k
+      iodepth=4
+      numjobs=4
+  - path: "/home/centos/pre-writeData.fio"
+    permissions: "0644"
+    owner: "centos"
+    content: |
+      [global]
+      ioengine=libaio
+      direct=1
+      filename=/dev/vdb
+      group_reporting
+
+      [SeqWrite-1M]
+      rw=write:16k
+      bs=1m
+      ; put data on 90% of the DUT
+      size=90%
+      iodepth=4
+      numjobs=4
+      scramble_buffers=1
+  - path: "/etc/systemd/system/fio-server.service"
+    permissions: "0644"
+    owner: "root"
+    content: |
+      [Unit]
+      Description=fio server
+      Author=Ed Balduf
+
+      [Service]
+      Restart=always
+      ExecStart=/usr/bin/fio --server
+  - path: "/tmp/completionCommand.sh"
+    permissions: "0755"
+    owner: "root"
+    content: |
+       #!/bin/bash
+       MYIP=$(curl -fsSL http://169.254.169.254/latest/meta-data/local-ipv4)
+       wc_notify --data-binary '{"status": "SUCCESS", "reason": "done", "data": "'$MYIP'"}'
+       echo "Sent Completion to Heat - $MYIP"
+
+runcmd:
+  # annoying, but set the /etc/hosts so vdbench will work
+  - curl -fsSL http://169.254.169.254/latest/meta-data/local-ipv4 >> /etc/hosts
+  - echo -n " " >> /etc/hosts
+  - hostname >> /etc/hosts
+  # prefill the test volume
+  - /usr/bin/fio /home/centos/pre-writeData.fio &> /home/centos/pre-write.out
+  - systemctl start fio-server
+  # no clue why the following doesn't work
+  #- wc_notify --data-binary '{"status": "SUCCESS", "data": "10.10.10.10"}'
+  - /tmp/completionCommand.sh
+
